@@ -4,6 +4,7 @@ import HowItWorks from "../components/HowItWorks";
 import OurServices from "../components/OurServices";
 import BrandsMarquee from "../components/BrandsMarquee";
 import WhyChooseUs from "../components/WhyChooseUs";
+import CTASection from "../components/CTASection";
 
 const Home = () => {
   return (
@@ -13,6 +14,7 @@ const Home = () => {
       <OurServices />
       <BrandsMarquee />
       <WhyChooseUs />
+      <CTASection />
     </div>
   );
 };
