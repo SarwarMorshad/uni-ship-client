@@ -19,6 +19,55 @@ const Banner = () => {
   return (
     <section className="bg-gray-100 py-8 md:py-12">
       <div className="container mx-auto px-4 md:px-6">
+        <style>
+          {`
+            .banner-swiper {
+              padding-bottom: 50px;
+            }
+            
+            .banner-swiper .swiper-button-next,
+            .banner-swiper .swiper-button-prev {
+              color: #1e3a4c;
+              background: white;
+              width: 50px;
+              height: 50px;
+              border-radius: 50%;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            
+            .banner-swiper .swiper-button-next:after,
+            .banner-swiper .swiper-button-prev:after {
+              font-size: 20px;
+              font-weight: bold;
+            }
+            
+            .banner-swiper .swiper-pagination-bullet {
+              width: 12px;
+              height: 12px;
+              background: #d1d5db;
+              opacity: 1;
+            }
+            
+            .banner-swiper .swiper-pagination-bullet-active {
+              background: #caeb66;
+              width: 30px;
+              border-radius: 6px;
+            }
+
+            @media (max-width: 768px) {
+              .banner-swiper .swiper-button-next,
+              .banner-swiper .swiper-button-prev {
+                width: 40px;
+                height: 40px;
+              }
+              
+              .banner-swiper .swiper-button-next:after,
+              .banner-swiper .swiper-button-prev:after {
+                font-size: 16px;
+              }
+            }
+          `}
+        </style>
         <Swiper
           modules={[Navigation, Pagination, Autoplay]}
           spaceBetween={30}
@@ -68,54 +117,6 @@ const Banner = () => {
           ))}
         </Swiper>
       </div>
-
-      <style jsx>{`
-        .banner-swiper {
-          padding-bottom: 50px;
-        }
-
-        .banner-swiper .swiper-button-next,
-        .banner-swiper .swiper-button-prev {
-          color: #1e3a4c;
-          background: white;
-          width: 50px;
-          height: 50px;
-          border-radius: 50%;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .banner-swiper .swiper-button-next:after,
-        .banner-swiper .swiper-button-prev:after {
-          font-size: 20px;
-          font-weight: bold;
-        }
-
-        .banner-swiper .swiper-pagination-bullet {
-          width: 12px;
-          height: 12px;
-          background: #d1d5db;
-          opacity: 1;
-        }
-
-        .banner-swiper .swiper-pagination-bullet-active {
-          background: #caeb66;
-          width: 30px;
-          border-radius: 6px;
-        }
-
-        @media (max-width: 768px) {
-          .banner-swiper .swiper-button-next,
-          .banner-swiper .swiper-button-prev {
-            width: 40px;
-            height: 40px;
-          }
-
-          .banner-swiper .swiper-button-next:after,
-          .banner-swiper .swiper-button-prev:after {
-            font-size: 16px;
-          }
-        }
-      `}</style>
     </section>
   );
 };

@@ -10,7 +10,7 @@ const Footer = () => {
             <Link to="/" className="inline-flex items-center mb-4">
               <div className="flex items-center gap-1">
                 <div className="w-10 h-10 bg-lime-400 rounded-lg flex items-center justify-center transform -skew-x-12">
-                  <span className="text-gray-900 font-bold text-2xl transform skew-x-12">Z</span>
+                  <span className="text-gray-900 font-black text-2xl transform skew-x-12">U</span>
                 </div>
                 <span className="text-3xl font-bold">UniShip</span>
               </div>
