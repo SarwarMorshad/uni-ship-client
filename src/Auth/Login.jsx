@@ -1,29 +1,72 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
+import useAuth from "../hooks/useAuth";
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const navigate = useNavigate();
+  const { signInUser, signInWithGoogle } = useAuth();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm();
+
+  // Handle email/password login
+  const onSubmit = async (data) => {
+    try {
+      await signInUser(data.email, data.password);
+      console.log("User logged in successfully");
+      // Redirect to home or dashboard
+      navigate("/");
+    } catch (error) {
+      console.error("Login error:", error);
+      // Set form error based on Firebase error
+      if (error.code === "auth/invalid-credential") {
+        setError("root", {
+          type: "manual",
+          message: "Invalid email or password",
+        });
+      } else if (error.code === "auth/user-not-found") {
+        setError("email", {
+          type: "manual",
+          message: "No account found with this email",
+        });
+      } else if (error.code === "auth/wrong-password") {
+        setError("password", {
+          type: "manual",
+          message: "Incorrect password",
+        });
+      } else if (error.code === "auth/too-many-requests") {
+        setError("root", {
+          type: "manual",
+          message: "Too many failed attempts. Please try again later.",
+        });
+      } else {
+        setError("root", {
+          type: "manual",
+          message: error.message || "Failed to login. Please try again.",
+        });
+      }
+    }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Login:", formData);
-    // Implement login logic here
-  };
-
-  const handleGoogleLogin = () => {
-    console.log("Login with Google");
-    // Implement Google login logic here
+  // Handle Google login
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle();
+      console.log("Google login successful");
+      navigate("/");
+    } catch (error) {
+      console.error("Google login error:", error);
+      setError("root", {
+        type: "manual",
+        message: "Failed to login with Google. Please try again.",
+      });
+    }
   };
 
   return (
@@ -32,8 +75,15 @@ const Login = () => {
       <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">Welcome Back</h1>
       <p className="text-gray-600 text-lg mb-8">Login with ZapShift</p>
 
+      {/* Error Message */}
+      {errors.root && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 text-sm">{errors.root.message}</p>
+        </div>
+      )}
+
       {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Email Field */}
         <div>
           <label htmlFor="email" className="block text-gray-900 font-medium mb-2">
@@ -42,13 +92,21 @@ const Login = () => {
           <input
             type="email"
             id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
+            {...register("email", {
+              required: "Email is required",
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: "Invalid email address",
+              },
+            })}
             placeholder="Email"
-            required
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#caeb66] focus:outline-none focus:ring-2 focus:ring-[#caeb66]/20 text-gray-900 placeholder-gray-400"
+            className={`w-full px-4 py-3 rounded-lg border ${
+              errors.email
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                : "border-gray-300 focus:border-[#caeb66] focus:ring-[#caeb66]/20"
+            } focus:outline-none focus:ring-2 text-gray-900 placeholder-gray-400`}
           />
+          {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
         </div>
 
         {/* Password Field */}
@@ -59,13 +117,21 @@ const Login = () => {
           <input
             type="password"
             id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
+            {...register("password", {
+              required: "Password is required",
+              minLength: {
+                value: 6,
+                message: "Password must be at least 6 characters",
+              },
+            })}
             placeholder="Password"
-            required
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#caeb66] focus:outline-none focus:ring-2 focus:ring-[#caeb66]/20 text-gray-900 placeholder-gray-400"
+            className={`w-full px-4 py-3 rounded-lg border ${
+              errors.password
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                : "border-gray-300 focus:border-[#caeb66] focus:ring-[#caeb66]/20"
+            } focus:outline-none focus:ring-2 text-gray-900 placeholder-gray-400`}
           />
+          {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
         </div>
 
         {/* Forget Password Link */}
@@ -78,9 +144,10 @@ const Login = () => {
         {/* Login Button */}
         <button
           type="submit"
-          className="w-full bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+          disabled={isSubmitting}
+          className="w-full bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Login
+          {isSubmitting ? "Logging in..." : "Login"}
         </button>
 
         {/* Register Link */}
@@ -105,7 +172,8 @@ const Login = () => {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-3"
+          disabled={isSubmitting}
+          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FaGoogle className="text-xl text-red-500" />
           Login with google

@@ -5,11 +5,13 @@ import Coverage from "../pages/Coverage";
 import AuthLayout from "../layouts/AuthLayout";
 import Login from "../Auth/Login";
 import Register from "../Auth/Register";
+import ErrorPage from "../pages/ErrorPage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: RootLayout,
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
