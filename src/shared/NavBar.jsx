@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
+import Logo from "./Logo";
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -62,25 +63,18 @@ const NavBar = () => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <NavLink to="/" className="flex items-center">
-            <div className="flex items-center gap-1">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center transform -skew-x-12">
-                <span className="text-gray-900 font-bold text-xl transform skew-x-12">Z</span>
-              </div>
-              <span className="text-2xl font-bold text-gray-800">ZapShift</span>
-            </div>
-          </NavLink>
+          <Logo />
 
           {/* Navigation Links - Desktop */}
           <div className="hidden md:flex items-center gap-8">{links}</div>
 
           {/* Auth Buttons - Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            <NavLink to="/signin" className="px-6 py-2 text-gray-700 hover:text-gray-900 font-medium">
+            <NavLink to="/login" className="px-6 py-2 text-gray-700 hover:text-gray-900 font-medium">
               Sign In
             </NavLink>
             <NavLink
-              to="/signup"
+              to="/register"
               className="px-6 py-2 bg-primary hover:bg-[#b8d959] text-gray-800 font-semibold rounded-lg transition-colors"
             >
               Sign Up
@@ -140,11 +134,11 @@ const NavBar = () => {
             <div className="flex flex-col gap-4">
               {links}
               <div className="border-t border-gray-200 pt-4 flex flex-col gap-3">
-                <NavLink to="/signin" className="text-gray-700 hover:text-gray-900 font-medium">
+                <NavLink to="/login" className="text-gray-700 hover:text-gray-900 font-medium">
                   Sign In
                 </NavLink>
                 <NavLink
-                  to="/signup"
+                  to="/register"
                   className="px-6 py-2 bg-primary hover:bg-[#b8d959] text-gray-800 font-semibold rounded-lg transition-colors text-center"
                 >
                   Sign Up
