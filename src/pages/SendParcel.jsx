@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { FaCheck, FaTimes } from "react-icons/fa";
 import useAuth from "../hooks/useAuth";
+import useAxios from "../hooks/useAxios";
 
 const SendParcel = () => {
   const { user } = useAuth();
+  const axios = useAxios();
   const [parcelType, setParcelType] = useState("document");
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -16,10 +19,11 @@ const SendParcel = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, touchedFields },
     watch,
     setValue,
   } = useForm({
+    mode: "onChange", // Enable real-time validation
     defaultValues: {
       senderName: user?.displayName || "",
       type: "document",
@@ -33,6 +37,33 @@ const SendParcel = () => {
   const watchSenderDistrict = watch("senderDistrict");
   const watchReceiverRegion = watch("receiverRegion");
   const watchReceiverDistrict = watch("receiverDistrict");
+
+  // Watch all fields for validation
+  const parcelName = watch("parcelName");
+  const senderName = watch("senderName");
+  const senderPhone = watch("senderPhone");
+  const senderAddress = watch("senderAddress");
+  const pickupInstruction = watch("pickupInstruction");
+  const receiverName = watch("receiverName");
+  const receiverPhone = watch("receiverPhone");
+  const receiverAddress = watch("receiverAddress");
+  const deliveryInstruction = watch("deliveryInstruction");
+
+  // Validation status helpers
+  const isParcelNameValid = parcelName && parcelName.length >= 3;
+  const isWeightValid = watchWeight && parseFloat(watchWeight) >= 0.1;
+  const isSenderNameValid = senderName && senderName.length >= 3;
+  const isSenderPhoneValid = senderPhone && /^[0-9]{11}$/.test(senderPhone);
+  const isSenderAddressValid = senderAddress && senderAddress.length >= 5;
+  const isSenderRegionValid = watchSenderRegion && watchSenderRegion !== "";
+  const isSenderDistrictValid = watchSenderDistrict && watchSenderDistrict !== "";
+  const isPickupInstructionValid = pickupInstruction && pickupInstruction.length >= 10;
+  const isReceiverNameValid = receiverName && receiverName.length >= 3;
+  const isReceiverPhoneValid = receiverPhone && /^[0-9]{11}$/.test(receiverPhone);
+  const isReceiverAddressValid = receiverAddress && receiverAddress.length >= 5;
+  const isReceiverRegionValid = watchReceiverRegion && watchReceiverRegion !== "";
+  const isReceiverDistrictValid = watchReceiverDistrict && watchReceiverDistrict !== "";
+  const isDeliveryInstructionValid = deliveryInstruction && deliveryInstruction.length >= 10;
 
   // Load warehouses data
   useEffect(() => {
@@ -142,23 +173,27 @@ const SendParcel = () => {
         ...formData,
         cost: estimatedCost,
         senderEmail: user?.email,
-        status: "unpaid",
-        createdAt: new Date().toISOString(),
       };
 
       console.log("Parcel Data:", parcelData);
 
-      // TODO: Save to database
-      // const response = await axios.post('/api/parcels', parcelData);
+      // Save to database using axios
+      const response = await axios.post("/parcels", parcelData);
 
-      toast.success("Parcel created successfully! 🎉", { id: toastId });
-      setShowConfirmModal(false);
+      if (response.data.success) {
+        toast.success("Parcel created successfully! 🎉", { id: toastId });
+        setShowConfirmModal(false);
 
-      // Reset form or redirect
-      // reset();
+        // Reset form or redirect to parcels page
+        // navigate('/parcels-to-pay');
+      } else {
+        throw new Error(response.data.message || "Failed to create parcel");
+      }
     } catch (error) {
       console.error("Error creating parcel:", error);
-      toast.error("Failed to create parcel. Please try again.", { id: toastId });
+      const errorMessage =
+        error.response?.data?.message || error.message || "Failed to create parcel. Please try again.";
+      toast.error(errorMessage, { id: toastId });
     }
   };
 
@@ -205,15 +240,33 @@ const SendParcel = () => {
               <label htmlFor="parcelName" className="block text-gray-900 font-medium mb-2">
                 Parcel Name
               </label>
-              <input
-                type="text"
-                id="parcelName"
-                {...register("parcelName", { required: "Parcel name is required" })}
-                placeholder="Parcel Name"
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.parcelName ? "border-red-500" : "border-gray-300"
-                } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  id="parcelName"
+                  {...register("parcelName", {
+                    required: "Parcel name is required",
+                    minLength: { value: 3, message: "Parcel name must be at least 3 characters" },
+                  })}
+                  placeholder="Parcel Name"
+                  className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                    errors.parcelName
+                      ? "border-red-500"
+                      : touchedFields.parcelName && isParcelNameValid
+                      ? "border-green-500"
+                      : "border-gray-300"
+                  } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                />
+                {touchedFields.parcelName && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {isParcelNameValid ? (
+                      <FaCheck className="text-green-500" />
+                    ) : (
+                      <FaTimes className="text-red-500" />
+                    )}
+                  </span>
+                )}
+              </div>
               {errors.parcelName && <p className="mt-1 text-sm text-red-600">{errors.parcelName.message}</p>}
             </div>
 
@@ -221,19 +274,34 @@ const SendParcel = () => {
               <label htmlFor="weight" className="block text-gray-900 font-medium mb-2">
                 Parcel Weight (KG)
               </label>
-              <input
-                type="number"
-                step="0.1"
-                id="weight"
-                {...register("weight", {
-                  required: "Weight is required",
-                  min: { value: 0.1, message: "Weight must be at least 0.1 kg" },
-                })}
-                placeholder="Parcel Weight (KG)"
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.weight ? "border-red-500" : "border-gray-300"
-                } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  id="weight"
+                  {...register("weight", {
+                    required: "Weight is required",
+                    min: { value: 0.1, message: "Weight must be at least 0.1 kg" },
+                  })}
+                  placeholder="Parcel Weight (KG)"
+                  className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                    errors.weight
+                      ? "border-red-500"
+                      : touchedFields.weight && isWeightValid
+                      ? "border-green-500"
+                      : "border-gray-300"
+                  } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                />
+                {touchedFields.weight && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {isWeightValid ? (
+                      <FaCheck className="text-green-500" />
+                    ) : (
+                      <FaTimes className="text-red-500" />
+                    )}
+                  </span>
+                )}
+              </div>
               {errors.weight && <p className="mt-1 text-sm text-red-600">{errors.weight.message}</p>}
             </div>
           </div>
@@ -250,15 +318,33 @@ const SendParcel = () => {
                   <label htmlFor="senderName" className="block text-gray-900 font-medium mb-2">
                     Sender Name
                   </label>
-                  <input
-                    type="text"
-                    id="senderName"
-                    {...register("senderName", { required: "Sender name is required" })}
-                    placeholder="Sender Name"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.senderName ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="senderName"
+                      {...register("senderName", {
+                        required: "Sender name is required",
+                        minLength: { value: 3, message: "Name must be at least 3 characters" },
+                      })}
+                      placeholder="Sender Name"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.senderName
+                          ? "border-red-500"
+                          : touchedFields.senderName && isSenderNameValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.senderName && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isSenderNameValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.senderName && (
                     <p className="mt-1 text-sm text-red-600">{errors.senderName.message}</p>
                   )}
@@ -269,15 +355,33 @@ const SendParcel = () => {
                   <label htmlFor="senderAddress" className="block text-gray-900 font-medium mb-2">
                     Address
                   </label>
-                  <input
-                    type="text"
-                    id="senderAddress"
-                    {...register("senderAddress", { required: "Address is required" })}
-                    placeholder="Address"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.senderAddress ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="senderAddress"
+                      {...register("senderAddress", {
+                        required: "Address is required",
+                        minLength: { value: 5, message: "Address must be at least 5 characters" },
+                      })}
+                      placeholder="Address"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.senderAddress
+                          ? "border-red-500"
+                          : touchedFields.senderAddress && isSenderAddressValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.senderAddress && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isSenderAddressValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.senderAddress && (
                     <p className="mt-1 text-sm text-red-600">{errors.senderAddress.message}</p>
                   )}
@@ -288,21 +392,36 @@ const SendParcel = () => {
                   <label htmlFor="senderPhone" className="block text-gray-900 font-medium mb-2">
                     Sender Phone No
                   </label>
-                  <input
-                    type="tel"
-                    id="senderPhone"
-                    {...register("senderPhone", {
-                      required: "Phone number is required",
-                      pattern: {
-                        value: /^[0-9]{11}$/,
-                        message: "Phone number must be 11 digits",
-                      },
-                    })}
-                    placeholder="Sender Phone No"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.senderPhone ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      id="senderPhone"
+                      {...register("senderPhone", {
+                        required: "Phone number is required",
+                        pattern: {
+                          value: /^[0-9]{11}$/,
+                          message: "Phone number must be 11 digits",
+                        },
+                      })}
+                      placeholder="Sender Phone No"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.senderPhone
+                          ? "border-red-500"
+                          : touchedFields.senderPhone && isSenderPhoneValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.senderPhone && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isSenderPhoneValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.senderPhone && (
                     <p className="mt-1 text-sm text-red-600">{errors.senderPhone.message}</p>
                   )}
@@ -313,20 +432,35 @@ const SendParcel = () => {
                   <label htmlFor="senderRegion" className="block text-gray-900 font-medium mb-2">
                     Your Region
                   </label>
-                  <select
-                    id="senderRegion"
-                    {...register("senderRegion", { required: "Region is required" })}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.senderRegion ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white`}
-                  >
-                    <option value="">Select your Region</option>
-                    {regions.map((region) => (
-                      <option key={region} value={region}>
-                        {region}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="senderRegion"
+                      {...register("senderRegion", { required: "Region is required" })}
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.senderRegion
+                          ? "border-red-500"
+                          : touchedFields.senderRegion && isSenderRegionValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white`}
+                    >
+                      <option value="">Select your Region</option>
+                      {regions.map((region) => (
+                        <option key={region} value={region}>
+                          {region}
+                        </option>
+                      ))}
+                    </select>
+                    {touchedFields.senderRegion && (
+                      <span className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {isSenderRegionValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.senderRegion && (
                     <p className="mt-1 text-sm text-red-600">{errors.senderRegion.message}</p>
                   )}
@@ -337,21 +471,37 @@ const SendParcel = () => {
                   <label htmlFor="senderDistrict" className="block text-gray-900 font-medium mb-2">
                     Your District
                   </label>
-                  <select
-                    id="senderDistrict"
-                    {...register("senderDistrict", { required: "District is required" })}
-                    disabled={!watchSenderRegion || senderDistricts.length === 0}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.senderDistrict ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                  >
-                    <option value="">Select your District</option>
-                    {senderDistricts.map((district) => (
-                      <option key={district} value={district}>
-                        {district}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="senderDistrict"
+                      {...register("senderDistrict", { required: "District is required" })}
+                      disabled={!watchSenderRegion || senderDistricts.length === 0}
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.senderDistrict
+                          ? "border-red-500"
+                          : touchedFields.senderDistrict && isSenderDistrictValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed`}
+                    >
+                      <option value="">Select your District</option>
+                      {senderDistricts.map((district) => (
+                        <option key={district} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                    {touchedFields.senderDistrict &&
+                      !(!watchSenderRegion || senderDistricts.length === 0) && (
+                        <span className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                          {isSenderDistrictValid ? (
+                            <FaCheck className="text-green-500" />
+                          ) : (
+                            <FaTimes className="text-red-500" />
+                          )}
+                        </span>
+                      )}
+                  </div>
                   {errors.senderDistrict && (
                     <p className="mt-1 text-sm text-red-600">{errors.senderDistrict.message}</p>
                   )}
@@ -362,15 +512,33 @@ const SendParcel = () => {
                   <label htmlFor="pickupInstruction" className="block text-gray-900 font-medium mb-2">
                     Pickup Instruction
                   </label>
-                  <textarea
-                    id="pickupInstruction"
-                    rows="4"
-                    {...register("pickupInstruction", { required: "Pickup instruction is required" })}
-                    placeholder="Pickup Instruction"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.pickupInstruction ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none resize-none`}
-                  />
+                  <div className="relative">
+                    <textarea
+                      id="pickupInstruction"
+                      rows="4"
+                      {...register("pickupInstruction", {
+                        required: "Pickup instruction is required",
+                        minLength: { value: 10, message: "Instruction must be at least 10 characters" },
+                      })}
+                      placeholder="Pickup Instruction"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.pickupInstruction
+                          ? "border-red-500"
+                          : touchedFields.pickupInstruction && isPickupInstructionValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none resize-none`}
+                    />
+                    {touchedFields.pickupInstruction && (
+                      <span className="absolute right-4 top-4">
+                        {isPickupInstructionValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.pickupInstruction && (
                     <p className="mt-1 text-sm text-red-600">{errors.pickupInstruction.message}</p>
                   )}
@@ -388,15 +556,33 @@ const SendParcel = () => {
                   <label htmlFor="receiverName" className="block text-gray-900 font-medium mb-2">
                     Receiver Name
                   </label>
-                  <input
-                    type="text"
-                    id="receiverName"
-                    {...register("receiverName", { required: "Receiver name is required" })}
-                    placeholder="Sender Name"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.receiverName ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="receiverName"
+                      {...register("receiverName", {
+                        required: "Receiver name is required",
+                        minLength: { value: 3, message: "Name must be at least 3 characters" },
+                      })}
+                      placeholder="Receiver Name"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.receiverName
+                          ? "border-red-500"
+                          : touchedFields.receiverName && isReceiverNameValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.receiverName && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isReceiverNameValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.receiverName && (
                     <p className="mt-1 text-sm text-red-600">{errors.receiverName.message}</p>
                   )}
@@ -407,15 +593,33 @@ const SendParcel = () => {
                   <label htmlFor="receiverAddress" className="block text-gray-900 font-medium mb-2">
                     Receiver Address
                   </label>
-                  <input
-                    type="text"
-                    id="receiverAddress"
-                    {...register("receiverAddress", { required: "Address is required" })}
-                    placeholder="Address"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.receiverAddress ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="receiverAddress"
+                      {...register("receiverAddress", {
+                        required: "Address is required",
+                        minLength: { value: 5, message: "Address must be at least 5 characters" },
+                      })}
+                      placeholder="Receiver Address"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.receiverAddress
+                          ? "border-red-500"
+                          : touchedFields.receiverAddress && isReceiverAddressValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.receiverAddress && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isReceiverAddressValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.receiverAddress && (
                     <p className="mt-1 text-sm text-red-600">{errors.receiverAddress.message}</p>
                   )}
@@ -426,21 +630,36 @@ const SendParcel = () => {
                   <label htmlFor="receiverPhone" className="block text-gray-900 font-medium mb-2">
                     Receiver Contact No
                   </label>
-                  <input
-                    type="tel"
-                    id="receiverPhone"
-                    {...register("receiverPhone", {
-                      required: "Phone number is required",
-                      pattern: {
-                        value: /^[0-9]{11}$/,
-                        message: "Phone number must be 11 digits",
-                      },
-                    })}
-                    placeholder="Sender Contact No"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.receiverPhone ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      id="receiverPhone"
+                      {...register("receiverPhone", {
+                        required: "Phone number is required",
+                        pattern: {
+                          value: /^[0-9]{11}$/,
+                          message: "Phone number must be 11 digits",
+                        },
+                      })}
+                      placeholder="Receiver Contact No"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.receiverPhone
+                          ? "border-red-500"
+                          : touchedFields.receiverPhone && isReceiverPhoneValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none`}
+                    />
+                    {touchedFields.receiverPhone && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {isReceiverPhoneValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.receiverPhone && (
                     <p className="mt-1 text-sm text-red-600">{errors.receiverPhone.message}</p>
                   )}
@@ -451,20 +670,35 @@ const SendParcel = () => {
                   <label htmlFor="receiverRegion" className="block text-gray-900 font-medium mb-2">
                     Receiver Region
                   </label>
-                  <select
-                    id="receiverRegion"
-                    {...register("receiverRegion", { required: "Region is required" })}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.receiverRegion ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white`}
-                  >
-                    <option value="">Select your Region</option>
-                    {regions.map((region) => (
-                      <option key={region} value={region}>
-                        {region}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="receiverRegion"
+                      {...register("receiverRegion", { required: "Region is required" })}
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.receiverRegion
+                          ? "border-red-500"
+                          : touchedFields.receiverRegion && isReceiverRegionValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white`}
+                    >
+                      <option value="">Select Region</option>
+                      {regions.map((region) => (
+                        <option key={region} value={region}>
+                          {region}
+                        </option>
+                      ))}
+                    </select>
+                    {touchedFields.receiverRegion && (
+                      <span className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {isReceiverRegionValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.receiverRegion && (
                     <p className="mt-1 text-sm text-red-600">{errors.receiverRegion.message}</p>
                   )}
@@ -475,21 +709,37 @@ const SendParcel = () => {
                   <label htmlFor="receiverDistrict" className="block text-gray-900 font-medium mb-2">
                     Receiver District
                   </label>
-                  <select
-                    id="receiverDistrict"
-                    {...register("receiverDistrict", { required: "District is required" })}
-                    disabled={!watchReceiverRegion || receiverDistricts.length === 0}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.receiverDistrict ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                  >
-                    <option value="">Select your District</option>
-                    {receiverDistricts.map((district) => (
-                      <option key={district} value={district}>
-                        {district}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="receiverDistrict"
+                      {...register("receiverDistrict", { required: "District is required" })}
+                      disabled={!watchReceiverRegion || receiverDistricts.length === 0}
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.receiverDistrict
+                          ? "border-red-500"
+                          : touchedFields.receiverDistrict && isReceiverDistrictValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed`}
+                    >
+                      <option value="">Select District</option>
+                      {receiverDistricts.map((district) => (
+                        <option key={district} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                    {touchedFields.receiverDistrict &&
+                      !(!watchReceiverRegion || receiverDistricts.length === 0) && (
+                        <span className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                          {isReceiverDistrictValid ? (
+                            <FaCheck className="text-green-500" />
+                          ) : (
+                            <FaTimes className="text-red-500" />
+                          )}
+                        </span>
+                      )}
+                  </div>
                   {errors.receiverDistrict && (
                     <p className="mt-1 text-sm text-red-600">{errors.receiverDistrict.message}</p>
                   )}
@@ -500,15 +750,33 @@ const SendParcel = () => {
                   <label htmlFor="deliveryInstruction" className="block text-gray-900 font-medium mb-2">
                     Delivery Instruction
                   </label>
-                  <textarea
-                    id="deliveryInstruction"
-                    rows="4"
-                    {...register("deliveryInstruction", { required: "Delivery instruction is required" })}
-                    placeholder="Delivery Instruction"
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.deliveryInstruction ? "border-red-500" : "border-gray-300"
-                    } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none resize-none`}
-                  />
+                  <div className="relative">
+                    <textarea
+                      id="deliveryInstruction"
+                      rows="4"
+                      {...register("deliveryInstruction", {
+                        required: "Delivery instruction is required",
+                        minLength: { value: 10, message: "Instruction must be at least 10 characters" },
+                      })}
+                      placeholder="Delivery Instruction"
+                      className={`w-full px-4 py-3 pr-12 rounded-lg border ${
+                        errors.deliveryInstruction
+                          ? "border-red-500"
+                          : touchedFields.deliveryInstruction && isDeliveryInstructionValid
+                          ? "border-green-500"
+                          : "border-gray-300"
+                      } focus:border-[#caeb66] focus:ring-2 focus:ring-[#caeb66]/20 focus:outline-none resize-none`}
+                    />
+                    {touchedFields.deliveryInstruction && (
+                      <span className="absolute right-4 top-4">
+                        {isDeliveryInstructionValid ? (
+                          <FaCheck className="text-green-500" />
+                        ) : (
+                          <FaTimes className="text-red-500" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {errors.deliveryInstruction && (
                     <p className="mt-1 text-sm text-red-600">{errors.deliveryInstruction.message}</p>
                   )}
