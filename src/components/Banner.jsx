@@ -8,6 +8,7 @@ import "swiper/css/pagination";
 import banner1 from "../assets/banner/banner1.png";
 import banner2 from "../assets/banner/banner2.png";
 import banner3 from "../assets/banner/banner3.png";
+import { Link } from "react-router";
 
 const Banner = () => {
   const banners = [
@@ -108,9 +109,12 @@ const Banner = () => {
                       </svg>
                     </span>
                   </button>
-                  <button className="px-6 md:px-8 py-3 md:py-4 bg-white hover:bg-gray-50 text-gray-800 font-semibold rounded-full border-2 border-gray-300 transition-all duration-300 shadow-md">
+                  <Link
+                    to="/be-a-rider"
+                    className="px-6 md:px-8 py-3 md:py-4 bg-white hover:bg-gray-50 text-gray-800 font-semibold rounded-full border-2 border-gray-300 transition-all duration-300 shadow-md"
+                  >
                     Be A Rider
-                  </button>
+                  </Link>
                 </div>
               </div>
             </SwiperSlide>

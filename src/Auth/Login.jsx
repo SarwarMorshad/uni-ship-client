@@ -1,12 +1,17 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
 import useAuth from "../hooks/useAuth";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signInUser, signInWithGoogle } = useAuth();
+
+  // Get the redirect path from location state, default to home
+  const from = location.state?.from?.pathname || "/";
 
   const {
     register,
@@ -17,35 +22,48 @@ const Login = () => {
 
   // Handle email/password login
   const onSubmit = async (data) => {
+    const toastId = toast.loading("Logging in...");
+
     try {
       await signInUser(data.email, data.password);
+      toast.success("Welcome back! 👋", { id: toastId, duration: 3000 });
+
       console.log("User logged in successfully");
-      // Redirect to home or dashboard
-      navigate("/");
+
+      // Redirect to the page user was trying to access
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1000);
     } catch (error) {
       console.error("Login error:", error);
-      // Set form error based on Firebase error
+
+      // Set form error and show toast based on Firebase error
       if (error.code === "auth/invalid-credential") {
+        toast.error("Invalid email or password", { id: toastId });
         setError("root", {
           type: "manual",
           message: "Invalid email or password",
         });
       } else if (error.code === "auth/user-not-found") {
+        toast.error("No account found with this email", { id: toastId });
         setError("email", {
           type: "manual",
           message: "No account found with this email",
         });
       } else if (error.code === "auth/wrong-password") {
+        toast.error("Incorrect password", { id: toastId });
         setError("password", {
           type: "manual",
           message: "Incorrect password",
         });
       } else if (error.code === "auth/too-many-requests") {
+        toast.error("Too many failed attempts. Please try again later.", { id: toastId });
         setError("root", {
           type: "manual",
           message: "Too many failed attempts. Please try again later.",
         });
       } else {
+        toast.error("Failed to login. Please try again.", { id: toastId });
         setError("root", {
           type: "manual",
           message: error.message || "Failed to login. Please try again.",
@@ -56,12 +74,21 @@ const Login = () => {
 
   // Handle Google login
   const handleGoogleLogin = async () => {
+    const toastId = toast.loading("Signing in with Google...");
+
     try {
       await signInWithGoogle();
+      toast.success("Welcome back! 👋", { id: toastId, duration: 3000 });
+
       console.log("Google login successful");
-      navigate("/");
+
+      // Redirect to the page user was trying to access
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1000);
     } catch (error) {
       console.error("Google login error:", error);
+      toast.error("Failed to login with Google. Please try again.", { id: toastId });
       setError("root", {
         type: "manual",
         message: "Failed to login with Google. Please try again.",
@@ -74,6 +101,15 @@ const Login = () => {
       {/* Title */}
       <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">Welcome Back</h1>
       <p className="text-gray-600 text-lg mb-8">Login with ZapShift</p>
+
+      {/* Show redirect message if coming from private route */}
+      {location.state?.from && (
+        <div className="mb-6 p-4 bg-[#caeb66]/20 border border-[#caeb66] rounded-lg">
+          <p className="text-[#1e3a4c] text-sm font-medium">
+            Please login to continue to {location.state.from.pathname}
+          </p>
+        </div>
+      )}
 
       {/* Error Message */}
       {errors.root && (

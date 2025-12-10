@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Logo from "./Logo";
 import useAuth from "../hooks/useAuth";
+import toast from "react-hot-toast";
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -10,12 +11,19 @@ const NavBar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    const toastId = toast.loading("Logging out...");
+
     try {
       await logOut();
+      toast.success("Logged out successfully! See you soon! 👋", { id: toastId, duration: 3000 });
       setIsProfileOpen(false);
-      navigate("/");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     } catch (error) {
       console.error("Logout error:", error);
+      toast.error("Failed to logout. Please try again.", { id: toastId });
     }
   };
 
@@ -54,20 +62,20 @@ const NavBar = () => {
         Pricing
       </NavLink>
       <NavLink
-        to="/blog"
+        to="/sendParcel"
         className={({ isActive }) =>
           isActive ? "text-primary font-bold" : "text-gray-700 hover:text-gray-900 font-medium"
         }
       >
-        Blog
+        Send Parcel
       </NavLink>
       <NavLink
-        to="/contact"
+        to="/be-a-rider"
         className={({ isActive }) =>
           isActive ? "text-primary font-bold" : "text-gray-700 hover:text-gray-900 font-medium"
         }
       >
-        Contact
+        Be a Rider
       </NavLink>
     </>
   );
@@ -165,22 +173,6 @@ const NavBar = () => {
                 >
                   Sign Up
                 </NavLink>
-                <button className="w-10 h-10 bg-gray-900 hover:bg-gray-800 text-white rounded-full flex items-center justify-center transition-colors">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
-                    />
-                  </svg>
-                </button>
               </>
             )}
           </div>

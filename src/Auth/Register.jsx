@@ -1,14 +1,23 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { FaGoogle, FaCheck, FaTimes, FaEye, FaEyeSlash } from "react-icons/fa";
 import useAuth from "../hooks/useAuth";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { createUser, signInWithGoogle, updateUserProfile } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Get the redirect path from location state, default to home
+  const from = location.state?.from?.pathname || "/";
 
   const {
     register,
@@ -25,7 +34,68 @@ const Register = () => {
   const email = watch("email");
   const password = watch("password");
   const confirmPassword = watch("confirmPassword");
-  const photoURL = watch("photoURL");
+
+  // Handle image file selection
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("photoURL", {
+          type: "manual",
+          message: "Image size should be less than 5MB",
+        });
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        setError("photoURL", {
+          type: "manual",
+          message: "Please upload a valid image file",
+        });
+        return;
+      }
+
+      setImageFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Upload image to ImgBB using axios
+  const uploadImageToImgBB = async (imageFile) => {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    try {
+      setUploadingImage(true);
+      const response = await axios.post(
+        `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_IMGBB_HOST_API_KEY}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return response.data.data.url;
+      }
+      throw new Error("Image upload failed");
+    } catch (error) {
+      console.error("ImgBB upload error:", error);
+      throw new Error("Failed to upload image. Please try again.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // Validation status helpers
   const isNameValid = name && name.length >= 3 && /^[a-zA-Z\s]+$/.test(name);
@@ -33,39 +103,68 @@ const Register = () => {
   const isPasswordValid =
     password && password.length >= 6 && /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]/.test(password);
   const isConfirmPasswordValid = confirmPassword && confirmPassword === password;
-  const isPhotoURLValid = photoURL && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif|svg)$/i.test(photoURL);
 
   // Handle email/password registration
   const onSubmit = async (data) => {
+    const toastId = toast.loading("Creating your account...");
+
     try {
+      let photoURL = null;
+
+      // Upload image to ImgBB if file is selected
+      if (imageFile) {
+        try {
+          toast.loading("Uploading profile image...", { id: toastId });
+          photoURL = await uploadImageToImgBB(imageFile);
+          toast.loading("Creating your account...", { id: toastId });
+        } catch (error) {
+          toast.error("Failed to upload profile image. Please try again.", { id: toastId });
+          setError("root", {
+            type: "manual",
+            message: "Failed to upload profile image. Please try again.",
+          });
+          return;
+        }
+      }
+
       // Create user with email and password
       await createUser(data.email, data.password);
 
       // Update user profile with display name and photo URL
-      await updateUserProfile(data.name, data.photoURL || null);
+      await updateUserProfile(data.name, photoURL);
+
+      toast.success("Account created successfully! Welcome aboard! 🎉", { id: toastId, duration: 4000 });
 
       console.log("User registered successfully");
-      // Redirect to home or dashboard
-      navigate("/");
+
+      // Redirect to the page user was trying to access or home
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1000);
     } catch (error) {
       console.error("Registration error:", error);
+
       // Set form error based on Firebase error
       if (error.code === "auth/email-already-in-use") {
+        toast.error("Email is already registered", { id: toastId });
         setError("email", {
           type: "manual",
           message: "Email is already registered",
         });
       } else if (error.code === "auth/weak-password") {
+        toast.error("Password is too weak", { id: toastId });
         setError("password", {
           type: "manual",
           message: "Password is too weak",
         });
       } else if (error.code === "auth/invalid-email") {
+        toast.error("Invalid email address", { id: toastId });
         setError("email", {
           type: "manual",
           message: "Invalid email address",
         });
       } else {
+        toast.error("Failed to register. Please try again.", { id: toastId });
         setError("root", {
           type: "manual",
           message: error.message || "Failed to register. Please try again.",
@@ -76,12 +175,21 @@ const Register = () => {
 
   // Handle Google registration
   const handleGoogleRegister = async () => {
+    const toastId = toast.loading("Signing up with Google...");
+
     try {
       await signInWithGoogle();
+      toast.success("Account created successfully! Welcome! 🎉", { id: toastId, duration: 4000 });
+
       console.log("Google registration successful");
-      navigate("/");
+
+      // Redirect to the page user was trying to access or home
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1000);
     } catch (error) {
       console.error("Google registration error:", error);
+      toast.error("Failed to register with Google. Please try again.", { id: toastId });
       setError("root", {
         type: "manual",
         message: "Failed to register with Google. Please try again.",
@@ -100,6 +208,15 @@ const Register = () => {
       {/* Title */}
       <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">Create Account</h1>
       <p className="text-gray-600 text-lg mb-8">Register with ZapShift</p>
+
+      {/* Show redirect message if coming from private route */}
+      {location.state?.from && (
+        <div className="mb-6 p-4 bg-[#caeb66]/20 border border-[#caeb66] rounded-lg">
+          <p className="text-[#1e3a4c] text-sm font-medium">
+            Please register to continue to {location.state.from.pathname}
+          </p>
+        </div>
+      )}
 
       {/* Error Message */}
       {errors.root && (
@@ -149,23 +266,19 @@ const Register = () => {
           )}
         </div>
 
-        {/* Profile Image URL */}
+        {/* Profile Image Upload */}
         <div>
           <label htmlFor="photoURL" className="block text-gray-900 font-medium mb-2">
-            Profile Picture URL (Optional)
+            Profile Picture (Optional)
           </label>
-          <div className="flex items-start gap-4">
+          <div className="flex items-center gap-4">
             {/* Image Preview */}
             <div className="flex-shrink-0">
-              {photoURL && isPhotoURLValid ? (
+              {imagePreview ? (
                 <img
-                  src={photoURL}
+                  src={imagePreview}
                   alt="Profile preview"
                   className="w-20 h-20 rounded-full object-cover border-2 border-primary"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "https://via.placeholder.com/80?text=Invalid";
-                  }}
                 />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
@@ -174,38 +287,41 @@ const Register = () => {
               )}
             </div>
 
-            {/* URL Input */}
+            {/* Upload Button */}
             <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="url"
-                  id="photoURL"
-                  {...register("photoURL", {
-                    pattern: {
-                      value: /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif|svg)$/i,
-                      message: "Please enter a valid image URL (jpg, png, webp, gif, svg)",
-                    },
-                  })}
-                  placeholder="https://example.com/profile.jpg"
-                  className={`w-full px-4 py-3 pr-12 rounded-lg border ${
-                    errors.photoURL
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : photoURL && isPhotoURLValid
-                      ? "border-green-500 focus:border-green-500 focus:ring-green-500/20"
-                      : "border-gray-300 focus:border-[#caeb66] focus:ring-[#caeb66]/20"
-                  } focus:outline-none focus:ring-2 text-gray-900 placeholder-gray-400 transition-all`}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <ValidationIcon isValid={isPhotoURLValid} isTouched={touchedFields.photoURL || photoURL} />
-                </div>
-              </div>
-              {errors.photoURL && <p className="mt-1 text-sm text-red-600">{errors.photoURL.message}</p>}
-              {photoURL && !errors.photoURL && isPhotoURLValid && (
-                <p className="mt-1 text-sm text-green-600">✓ Valid image URL</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">Enter a direct link to your profile image</p>
+              <label
+                htmlFor="photoURL"
+                className="cursor-pointer inline-flex items-center px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <svg
+                  className="w-5 h-5 mr-2 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="text-sm font-medium text-gray-700">
+                  {imagePreview ? "Change Photo" : "Upload Photo"}
+                </span>
+              </label>
+              <input
+                type="file"
+                id="photoURL"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <p className="mt-1 text-xs text-gray-500">PNG, JPG, WEBP or GIF (max 5MB)</p>
             </div>
           </div>
+          {errors.photoURL && <p className="mt-1 text-sm text-red-600">{errors.photoURL.message}</p>}
+          {imagePreview && <p className="mt-1 text-sm text-green-600">✓ Image ready to upload</p>}
         </div>
 
         {/* Email Field */}
@@ -353,10 +469,10 @@ const Register = () => {
         {/* Register Button */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || uploadingImage}
           className="w-full bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "Creating Account..." : "Register"}
+          {uploadingImage ? "Uploading Image..." : isSubmitting ? "Creating Account..." : "Register"}
         </button>
 
         {/* Login Link */}

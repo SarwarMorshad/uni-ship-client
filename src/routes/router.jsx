@@ -6,6 +6,9 @@ import AuthLayout from "../layouts/AuthLayout";
 import Login from "../Auth/Login";
 import Register from "../Auth/Register";
 import ErrorPage from "../pages/ErrorPage";
+import BeARider from "../pages/BeARider";
+import PrivateRoute from "./PrivateRoute";
+import SendParcel from "../pages/SendParcel";
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +23,22 @@ export const router = createBrowserRouter([
       {
         path: "/coverage",
         element: <Coverage></Coverage>,
+      },
+      {
+        path: "/be-a-rider",
+        element: (
+          <PrivateRoute>
+            <BeARider></BeARider>
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: "/sendParcel",
+        element: (
+          <PrivateRoute>
+            <SendParcel></SendParcel>
+          </PrivateRoute>
+        ),
       },
     ],
   },
