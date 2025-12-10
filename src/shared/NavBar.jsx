@@ -88,79 +88,93 @@ const NavBar = () => {
           <Logo />
 
           {/* Navigation Links - Desktop */}
-          <div className="hidden md:flex items-center gap-8">{links}</div>
+          <div className="hidden lg:flex items-center gap-6">{links}</div>
 
           {/* Auth Section - Desktop */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4">
             {user ? (
-              // Logged In - Show Profile
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              <>
+                {/* Dashboard Button - Only for logged-in users */}
+                <NavLink
+                  to="/dashboard"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      isActive ? "bg-primary text-gray-900" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`
+                  }
                 >
-                  <span className="text-gray-700 font-medium">{user.displayName || "User"}</span>
-                  {user.photoURL ? (
-                    <img
-                      src={user.photoURL}
-                      alt={user.displayName || "User"}
-                      referrerPolicy="no-referrer"
-                      className="w-10 h-10 rounded-full object-cover border-2 border-primary"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.displayName || user.email || "User"
-                        )}&background=caeb66&color=1e3a4c&bold=true`;
-                      }}
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center border-2 border-primary">
-                      <span className="text-gray-900 font-bold text-lg">
-                        {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
-                      </span>
+                  Dashboard
+                </NavLink>
+
+                {/* Profile Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <span className="text-gray-700 font-medium">{user.displayName || "User"}</span>
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || "User"}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-primary"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            user.displayName || user.email || "User"
+                          )}&background=caeb66&color=1e3a4c&bold=true`;
+                        }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center border-2 border-primary">
+                        <span className="text-gray-900 font-bold text-lg">
+                          {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isProfileOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      <div className="px-4 py-3 border-b border-gray-200">
+                        <p className="text-sm font-semibold text-gray-900">{user.displayName || "User"}</p>
+                        <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                      </div>
+                      <NavLink
+                        to="/dashboard/my-parcels"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        My Parcels
+                      </NavLink>
+                      <NavLink
+                        to="/dashboard/settings"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        Settings
+                      </NavLink>
+                      <NavLink
+                        to="/dashboard/payment-history"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        Payment History
+                      </NavLink>
+                      <div className="border-t border-gray-200 mt-2 pt-2">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Logout
+                        </button>
+                      </div>
                     </div>
                   )}
-                </button>
-
-                {/* Dropdown Menu */}
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-semibold text-gray-900">{user.displayName || "User"}</p>
-                      <p className="text-xs text-gray-600 truncate">{user.email}</p>
-                    </div>
-                    <NavLink
-                      to="/dashboard"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      Dashboard
-                    </NavLink>
-                    <NavLink
-                      to="/profile"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      My Profile
-                    </NavLink>
-                    <NavLink
-                      to="/orders"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      My Orders
-                    </NavLink>
-                    <div className="border-t border-gray-200 mt-2 pt-2">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              </>
             ) : (
               // Not Logged In - Show Auth Buttons
               <>
@@ -178,7 +192,7 @@ const NavBar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden btn btn-ghost btn-circle">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden btn btn-ghost btn-circle">
             {isMenuOpen ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -210,7 +224,7 @@ const NavBar = () => {
 
         {/* Mobile Menu Dropdown */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4">
+          <div className="lg:hidden mt-4 pb-4">
             <div className="flex flex-col gap-4">
               {links}
               <div className="border-t border-gray-200 pt-4 flex flex-col gap-3">
@@ -246,23 +260,30 @@ const NavBar = () => {
                     <NavLink
                       to="/dashboard"
                       onClick={() => setIsMenuOpen(false)}
-                      className="text-gray-700 hover:text-gray-900 font-medium"
+                      className="px-4 py-2 bg-primary hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors text-center"
                     >
                       Dashboard
                     </NavLink>
                     <NavLink
-                      to="/profile"
+                      to="/dashboard/my-parcels"
                       onClick={() => setIsMenuOpen(false)}
                       className="text-gray-700 hover:text-gray-900 font-medium"
                     >
-                      My Profile
+                      My Parcels
                     </NavLink>
                     <NavLink
-                      to="/orders"
+                      to="/dashboard/settings"
                       onClick={() => setIsMenuOpen(false)}
                       className="text-gray-700 hover:text-gray-900 font-medium"
                     >
-                      My Orders
+                      Settings
+                    </NavLink>
+                    <NavLink
+                      to="/dashboard/payment-history"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="text-gray-700 hover:text-gray-900 font-medium"
+                    >
+                      Payment History
                     </NavLink>
                     <button
                       onClick={handleLogout}

@@ -8,7 +8,6 @@ import useAxios from "../hooks/useAxios";
 const SendParcel = () => {
   const { user } = useAuth();
   const axios = useAxios();
-  const [parcelType, setParcelType] = useState("document");
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [formData, setFormData] = useState(null);
@@ -216,7 +215,6 @@ const SendParcel = () => {
                   type="radio"
                   value="document"
                   {...register("type")}
-                  onChange={(e) => setParcelType(e.target.value)}
                   className="w-5 h-5 text-[#caeb66] focus:ring-[#caeb66] focus:ring-2"
                 />
                 <span className="text-gray-900 font-medium">Document</span>
@@ -226,7 +224,6 @@ const SendParcel = () => {
                   type="radio"
                   value="non-document"
                   {...register("type")}
-                  onChange={(e) => setParcelType(e.target.value)}
                   className="w-5 h-5 text-[#caeb66] focus:ring-[#caeb66] focus:ring-2"
                 />
                 <span className="text-gray-900 font-medium">Non-Document</span>
