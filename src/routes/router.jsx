@@ -11,6 +11,9 @@ import SendParcel from "../pages/SendParcel";
 import MyParcels from "../pages/dashboard/MyParcels";
 import PrivateRoute from "./PrivateRoute";
 import DashboardLayout from "../pages/DashboardLayout";
+import ParcelDetails from "../pages/dashboard/ParcelDetails";
+import PaymentPage from "../pages/dashboard/PaymentPage";
+import PaymentSuccess from "../pages/dashboard/PaymentSuccess";
 
 export const router = createBrowserRouter([
   // Public Routes
@@ -97,11 +100,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "parcel/:id",
-        element: <div className="text-2xl font-bold">Parcel Details - Coming Soon</div>,
+        element: <ParcelDetails />,
       },
       {
         path: "pay/:id",
-        element: <div className="text-2xl font-bold">Payment Page - Coming Soon</div>,
+        element: <PaymentPage />,
+      },
+      {
+        path: "payment-success",
+        element: <PaymentSuccess />,
       },
       {
         path: "track/:trackingNo",

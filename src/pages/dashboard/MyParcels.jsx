@@ -1,53 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaEye, FaMapMarkerAlt, FaMoneyBillWave, FaSearch } from "react-icons/fa";
+import { FaEye, FaMapMarkerAlt, FaMoneyBillWave, FaSearch, FaTrash } from "react-icons/fa";
+import { useUserParcels, useDeleteParcel } from "../../hooks/useParcel";
 import useAuth from "../../hooks/useAuth";
-import useAxios from "../../hooks/useAxios";
-import toast from "react-hot-toast";
 import StatusBadge from "../../shared/StatusBadge";
 import LoadingSpinner from "../../shared/LoadingSpinner";
 import EmptyState from "../../shared/EmptyState";
 
 const MyParcels = () => {
   const { user } = useAuth();
-  const axios = useAxios();
   const navigate = useNavigate();
 
-  const [parcels, setParcels] = useState([]);
-  const [filteredParcels, setFilteredParcels] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch parcels on component mount
-  useEffect(() => {
-    fetchParcels();
-  }, [user]);
+  // Fetch parcels using TanStack Query
+  const { data, isLoading, isError, error, refetch } = useUserParcels(user?.email);
 
-  // Filter parcels when search or status filter changes
-  useEffect(() => {
-    filterParcels();
-  }, [searchQuery, statusFilter, parcels]);
+  // Delete mutation
+  const deleteMutation = useDeleteParcel(user?.email);
 
-  const fetchParcels = async () => {
-    if (!user?.email) return;
+  const parcels = data?.parcels || [];
 
-    try {
-      setLoading(true);
-      const response = await axios.get(`/parcels/user/${user.email}`);
-
-      if (response.data.success) {
-        setParcels(response.data.parcels);
-      }
-    } catch (error) {
-      console.error("Error fetching parcels:", error);
-      toast.error("Failed to load parcels");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterParcels = () => {
+  // Filter parcels based on search and status
+  const filteredParcels = useMemo(() => {
     let filtered = parcels;
 
     // Filter by status
@@ -55,7 +31,7 @@ const MyParcels = () => {
       filtered = filtered.filter((parcel) => parcel.status === statusFilter);
     }
 
-    // Filter by search query (parcel name, tracking number, receiver name)
+    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -67,18 +43,20 @@ const MyParcels = () => {
       );
     }
 
-    setFilteredParcels(filtered);
-  };
+    return filtered;
+  }, [parcels, searchQuery, statusFilter]);
 
-  const getStatusCounts = () => {
-    return {
+  // Calculate status counts
+  const statusCounts = useMemo(
+    () => ({
       all: parcels.length,
       unpaid: parcels.filter((p) => p.status === "unpaid").length,
       paid: parcels.filter((p) => p.status === "paid").length,
       "in-transit": parcels.filter((p) => p.status === "in-transit").length,
       delivered: parcels.filter((p) => p.status === "delivered").length,
-    };
-  };
+    }),
+    [parcels]
+  );
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -89,10 +67,30 @@ const MyParcels = () => {
     });
   };
 
-  const statusCounts = getStatusCounts();
+  const handleDelete = async (parcelId, parcelName) => {
+    if (window.confirm(`Are you sure you want to delete "${parcelName}"?`)) {
+      await deleteMutation.mutateAsync(parcelId);
+    }
+  };
 
-  if (loading) {
+  // Loading state
+  if (isLoading) {
     return <LoadingSpinner />;
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-red-600 mb-4">Error loading parcels: {error.message}</p>
+        <button
+          onClick={() => refetch()}
+          className="px-6 py-2 bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg"
+        >
+          Try Again
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -185,12 +183,15 @@ const MyParcels = () => {
               : "You haven't created any parcels yet"
           }
           action={
-            <button
-              onClick={() => navigate("/dashboard/add-parcel")}
-              className="mt-4 px-6 py-3 bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors"
-            >
-              Create Your First Parcel
-            </button>
+            !searchQuery &&
+            statusFilter === "all" && (
+              <button
+                onClick={() => navigate("/dashboard/add-parcel")}
+                className="mt-4 px-6 py-3 bg-[#caeb66] hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors"
+              >
+                Create Your First Parcel
+              </button>
+            )
           }
         />
       ) : (
@@ -288,6 +289,18 @@ const MyParcels = () => {
                             title="Track Parcel"
                           >
                             <FaMapMarkerAlt />
+                          </button>
+                        )}
+
+                        {/* Delete Button (only for unpaid) */}
+                        {parcel.status === "unpaid" && (
+                          <button
+                            onClick={() => handleDelete(parcel._id, parcel.parcelName)}
+                            disabled={deleteMutation.isPending}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete Parcel"
+                          >
+                            <FaTrash />
                           </button>
                         )}
                       </div>
