@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { FaGoogle, FaCheck, FaTimes, FaEye, FaEyeSlash } from "react-icons/fa";
 import useAuth from "../hooks/useAuth";
+import { useCreateUser } from "../hooks/useUser";
 import axios from "axios";
 import toast from "react-hot-toast";
 
@@ -10,6 +11,7 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { createUser, signInWithGoogle, updateUserProfile } = useAuth();
+  const createUserMutation = useCreateUser(); // ✨ NEW: Hook to save user to database
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -127,11 +129,24 @@ const Register = () => {
         }
       }
 
-      // Create user with email and password
+      // Create user with email and password in Firebase
       await createUser(data.email, data.password);
 
       // Update user profile with display name and photo URL
       await updateUserProfile(data.name, photoURL);
+
+      // ✨ NEW: Save user to MongoDB database
+      try {
+        await createUserMutation.mutateAsync({
+          email: data.email,
+          displayName: data.name,
+          photoURL: photoURL,
+        });
+        console.log("✅ User saved to database");
+      } catch (dbError) {
+        console.error("⚠️ Failed to save user to database, but Firebase account created:", dbError);
+        // Continue anyway since Firebase account was created successfully
+      }
 
       toast.success("Account created successfully! Welcome aboard! 🎉", { id: toastId, duration: 4000 });
 
@@ -178,7 +193,21 @@ const Register = () => {
     const toastId = toast.loading("Signing up with Google...");
 
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+
+      // ✨ NEW: Save user to MongoDB database
+      try {
+        await createUserMutation.mutateAsync({
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL,
+        });
+        console.log("✅ User saved to database");
+      } catch (dbError) {
+        console.error("⚠️ Failed to save user to database, but Google sign-in successful:", dbError);
+        // Continue anyway since Google sign-in was successful
+      }
+
       toast.success("Account created successfully! Welcome! 🎉", { id: toastId, duration: 4000 });
 
       console.log("Google registration successful");

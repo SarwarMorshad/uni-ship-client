@@ -1,35 +1,43 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { FaCheckCircle, FaBox, FaMapMarkerAlt, FaHome, FaSpinner } from "react-icons/fa";
 import { useVerifyPayment } from "../../hooks/usePayment";
+import { useParcelDetails } from "../../hooks/useParcel";
 import LoadingSpinner from "../../shared/LoadingSpinner";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [trackingNumber, setTrackingNumber] = useState(null);
+  const [paymentData, setPaymentData] = useState(null);
+  const hasVerified = useRef(false); // Prevent double verification
 
   const sessionId = searchParams.get("session_id");
   const parcelId = searchParams.get("parcel_id");
   const verifyMutation = useVerifyPayment();
 
+  // Fetch parcel details
+  const { data: parcelData } = useParcelDetails(parcelId || location.state?.parcelId);
+  const parcel = parcelData?.parcel;
+
   // State from Cash on Delivery
   const cashState = location.state;
 
   useEffect(() => {
-    // If Stripe payment, verify it
-    if (sessionId && parcelId) {
+    // If Stripe payment and not already verified
+    if (sessionId && parcelId && !hasVerified.current) {
+      hasVerified.current = true; // Mark as verified
+
       verifyMutation.mutate(
         { sessionId, parcelId },
         {
           onSuccess: (data) => {
-            setTrackingNumber(data.tracking_no);
+            setPaymentData(data);
           },
         }
       );
     }
-  }, [sessionId, parcelId]);
+  }, []); // Empty dependency array - run only once
 
   // If no state and no Stripe params, redirect to dashboard
   if (!cashState && !sessionId) {
@@ -37,13 +45,8 @@ const PaymentSuccess = () => {
     return null;
   }
 
-  // Loading state for Stripe verification
-  if (sessionId && verifyMutation.isPending) {
-    return <LoadingSpinner />;
-  }
-
-  // Error state for Stripe verification
-  if (sessionId && verifyMutation.isError) {
+  // Error state for Stripe verification (only show error if verification actually failed)
+  if (sessionId && verifyMutation.isError && !paymentData) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg border p-8 text-center">
@@ -65,10 +68,14 @@ const PaymentSuccess = () => {
     );
   }
 
-  const amount = cashState?.amount || 0;
-  const parcelName = cashState?.parcelName || "Parcel";
+  // Get data from either Stripe or Cash on Delivery
   const paymentMethod = cashState?.paymentMethod || "stripe";
   const finalParcelId = parcelId || cashState?.parcelId;
+
+  // Use actual parcel data if available
+  const displayParcelName = parcel?.parcelName || cashState?.parcelName || "Parcel";
+  const displayAmount = parcel?.cost || cashState?.amount || 0;
+  const trackingNumber = paymentData?.tracking_no || parcel?.tracking_no;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -95,11 +102,11 @@ const PaymentSuccess = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between pb-4 border-b">
               <span className="text-gray-600">Parcel Name</span>
-              <span className="font-semibold text-gray-900">{parcelName}</span>
+              <span className="font-semibold text-gray-900">{displayParcelName}</span>
             </div>
             <div className="flex items-center justify-between pb-4 border-b">
               <span className="text-gray-600">Amount</span>
-              <span className="text-2xl font-bold text-green-600">৳{amount}</span>
+              <span className="text-2xl font-bold text-green-600">৳{displayAmount}</span>
             </div>
             <div className="flex items-center justify-between pb-4 border-b">
               <span className="text-gray-600">Payment Method</span>
@@ -113,10 +120,17 @@ const PaymentSuccess = () => {
                 {paymentMethod === "stripe" ? "Paid" : "Confirmed"}
               </span>
             </div>
-            {trackingNumber && (
+            {(trackingNumber || verifyMutation.isPending) && (
               <div className="flex items-center justify-between pt-4 border-t">
                 <span className="text-gray-600">Tracking Number</span>
-                <span className="font-mono font-bold text-[#caeb66] text-lg">{trackingNumber}</span>
+                {verifyMutation.isPending && !trackingNumber ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-[#caeb66] border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm text-gray-500">Generating...</span>
+                  </div>
+                ) : (
+                  <span className="font-mono font-bold text-[#caeb66] text-lg">{trackingNumber}</span>
+                )}
               </div>
             )}
           </div>

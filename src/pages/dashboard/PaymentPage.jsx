@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FaArrowLeft, FaCheckCircle, FaMoneyBillWave, FaBox, FaCreditCard, FaStripe } from "react-icons/fa";
 import { useParcelDetails } from "../../hooks/useParcel";
 import { useCreateCheckoutSession } from "../../hooks/usePayment";
+import useAuth from "../../hooks/useAuth";
 import LoadingSpinner from "../../shared/LoadingSpinner";
 
 const PaymentPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState("stripe");
 
   // Fetch parcel details
@@ -19,11 +21,12 @@ const PaymentPage = () => {
 
   const handlePayment = async () => {
     if (paymentMethod === "stripe") {
-      // Redirect to Stripe Checkout
+      // Redirect to Stripe Checkout with user email
       await checkoutMutation.mutateAsync({
         parcelId: id,
         amount: parcel.cost,
         parcelName: parcel.parcelName,
+        customerEmail: user?.email, // Pass logged-in user's email
       });
     } else {
       // Cash on Delivery - instant confirmation

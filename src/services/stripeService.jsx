@@ -9,11 +9,12 @@ const axiosInstance = axios.create({
 
 export const stripeService = {
   // Create Stripe Checkout Session
-  createCheckoutSession: async (parcelId, amount, parcelName) => {
+  createCheckoutSession: async (parcelId, amount, parcelName, customerEmail) => {
     const response = await axiosInstance.post("/create-checkout-session", {
       parcelId,
       amount,
       parcelName,
+      customerEmail,
     });
     return response.data;
   },

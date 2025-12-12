@@ -71,7 +71,7 @@ const DashboardTopBar = () => {
               />
               <div className="hidden md:block">
                 <p className="text-sm font-semibold text-gray-900">{user?.displayName}</p>
-                <p className="text-xs text-gray-500">Admin</p>
+                {/* <p className="text-xs text-gray-500">Admin</p> */}
               </div>
             </button>
 

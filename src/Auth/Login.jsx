@@ -103,13 +103,13 @@ const Login = () => {
       <p className="text-gray-600 text-lg mb-8">Login with ZapShift</p>
 
       {/* Show redirect message if coming from private route */}
-      {location.state?.from && (
+      {/* {location.state?.from && (
         <div className="mb-6 p-4 bg-[#caeb66]/20 border border-[#caeb66] rounded-lg">
           <p className="text-[#1e3a4c] text-sm font-medium">
             Please login to continue to {location.state.from.pathname}
           </p>
         </div>
-      )}
+      )} */}
 
       {/* Error Message */}
       {errors.root && (

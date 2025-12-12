@@ -1,92 +1,201 @@
-// src/hooks/useParcel.js
+// src/hooks/useParcel.jsx
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { parcelService } from "../services/parcelService";
+import useAxiosSecure from "./useAxiosSecure";
+import axios from "axios";
 import toast from "react-hot-toast";
 
-// Query Keys
+const API_URL = "http://localhost:3000";
+
+// Query keys
 export const parcelKeys = {
   all: ["parcels"],
   user: (email) => ["parcels", "user", email],
+  detail: (id) => ["parcels", id],
+  track: (trackingNo) => ["parcels", "track", trackingNo],
   unpaid: (email) => ["parcels", "unpaid", email],
-  detail: (id) => ["parcels", "detail", id],
-  search: (phone, email) => ["parcels", "search", phone, email],
 };
 
-// Get user's parcels
+// ==========================================
+// PUBLIC ENDPOINTS (No Auth Required)
+// ==========================================
+
+// Track parcel by tracking number (public)
+export const useTrackParcel = (trackingNo) => {
+  return useQuery({
+    queryKey: parcelKeys.track(trackingNo),
+    queryFn: async () => {
+      const response = await axios.get(`${API_URL}/parcels/track/${trackingNo}`);
+      return response.data;
+    },
+    enabled: !!trackingNo,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
+// ==========================================
+// PROTECTED ENDPOINTS (Auth Required)
+// ==========================================
+
+// Get user's parcels (requires auth)
 export const useUserParcels = (email) => {
+  const axiosSecure = useAxiosSecure();
+
   return useQuery({
     queryKey: parcelKeys.user(email),
-    queryFn: () => parcelService.getUserParcels(email),
-    enabled: !!email, // Only run if email exists
-  });
-};
-
-// Get unpaid parcels
-export const useUnpaidParcels = (email) => {
-  return useQuery({
-    queryKey: parcelKeys.unpaid(email),
-    queryFn: () => parcelService.getUnpaidParcels(email),
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/parcels/user/${email}`);
+      return response.data;
+    },
     enabled: !!email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 
-// Get single parcel
+// Get parcel by ID (requires auth) - THIS IS useParcelDetails
 export const useParcelDetails = (id) => {
+  const axiosSecure = useAxiosSecure();
+
   return useQuery({
     queryKey: parcelKeys.detail(id),
-    queryFn: () => parcelService.getParcelById(id),
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/parcels/${id}`);
+      return response.data;
+    },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
-// Create parcel mutation
+// Alternative name for the same hook
+export const useParcelById = useParcelDetails;
+
+// Get unpaid parcels (requires auth)
+export const useUnpaidParcels = (email) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: parcelKeys.unpaid(email),
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/parcels/user/${email}`);
+      // Filter unpaid parcels from response
+      const unpaidParcels = response.data.parcels?.filter((parcel) => parcel.status === "unpaid") || [];
+      return { ...response.data, parcels: unpaidParcels };
+    },
+    enabled: !!email,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Create parcel (requires auth)
 export const useCreateParcel = () => {
+  const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: parcelService.createParcel,
-    onSuccess: (data, variables) => {
-      // Invalidate user parcels query to refetch
-      queryClient.invalidateQueries({
-        queryKey: parcelKeys.user(variables.senderEmail),
-      });
-      toast.success("Parcel created successfully! 🎉");
+    mutationFn: async (parcelData) => {
+      const response = await axiosSecure.post("/parcels", parcelData);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      toast.success("Parcel created successfully!");
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || "Failed to create parcel";
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.message || "Failed to create parcel");
     },
   });
 };
 
-// Delete parcel mutation
-export const useDeleteParcel = (userEmail) => {
+// Update parcel (requires auth)
+export const useUpdateParcel = () => {
+  const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: parcelService.deleteParcel,
+    mutationFn: async ({ id, data }) => {
+      const response = await axiosSecure.put(`/parcels/${id}`, data);
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.detail(variables.id) });
+      toast.success("Parcel updated successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to update parcel");
+    },
+  });
+};
+
+// Delete parcel (requires auth)
+export const useDeleteParcel = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosSecure.delete(`/parcels/${id}`);
+      return response.data;
+    },
     onSuccess: () => {
-      // Invalidate queries to refetch
-      queryClient.invalidateQueries({
-        queryKey: parcelKeys.user(userEmail),
-      });
-      queryClient.invalidateQueries({
-        queryKey: parcelKeys.unpaid(userEmail),
-      });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
       toast.success("Parcel deleted successfully!");
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || "Failed to delete parcel";
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.message || "Failed to delete parcel");
     },
   });
 };
 
-// Search parcels by phone
-export const useSearchParcels = (phone, email) => {
+// ==========================================
+// ADMIN ENDPOINTS (Admin Auth Required)
+// ==========================================
+
+// Get all parcels (admin only)
+export const useAllParcels = () => {
+  const axiosSecure = useAxiosSecure();
+
   return useQuery({
-    queryKey: parcelKeys.search(phone, email),
-    queryFn: () => parcelService.searchParcelsByPhone(phone, email),
-    enabled: !!phone && !!email && phone.length >= 11,
+    queryKey: parcelKeys.all,
+    queryFn: async () => {
+      const response = await axiosSecure.get("/parcels");
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
+};
+
+// Update parcel status (admin/rider only)
+export const useUpdateParcelStatus = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }) => {
+      const response = await axiosSecure.patch(`/parcels/${id}/status`, { status });
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.detail(variables.id) });
+      toast.success("Parcel status updated!");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to update status");
+    },
+  });
+};
+
+// Default export for backward compatibility
+export default {
+  useUserParcels,
+  useParcelDetails,
+  useParcelById,
+  useUnpaidParcels,
+  useCreateParcel,
+  useUpdateParcel,
+  useDeleteParcel,
+  useAllParcels,
+  useUpdateParcelStatus,
+  useTrackParcel,
 };

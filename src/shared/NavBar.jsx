@@ -1,14 +1,19 @@
+// src/shared/NavBar.jsx - UPDATED with Admin Dashboard Support
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Logo from "./Logo";
 import useAuth from "../hooks/useAuth";
+import { useCheckAdmin } from "../hooks/useUser";
 import toast from "react-hot-toast";
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, logOut } = useAuth();
+  const { data: adminData } = useCheckAdmin(user?.email);
   const navigate = useNavigate();
+
+  const isAdmin = adminData?.isAdmin;
 
   const handleLogout = async () => {
     const toastId = toast.loading("Logging out...");
@@ -94,25 +99,24 @@ const NavBar = () => {
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <>
-                {/* Dashboard Button - Only for logged-in users */}
+                {/* Dashboard Button - Shows Admin Dashboard for admins, User Dashboard for users */}
                 <NavLink
-                  to="/dashboard"
+                  to={isAdmin ? "/admin" : "/dashboard"}
                   className={({ isActive }) =>
                     `px-4 py-2 rounded-lg font-semibold transition-colors ${
-                      isActive ? "bg-primary text-gray-900" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      isActive ? "bg-primary text-gray-900" : "bg-primary text-gray-700 hover:bg-[#b8d959]"
                     }`
                   }
                 >
-                  Dashboard
+                  {isAdmin ? "Admin Dashboard" : "Dashboard"}
                 </NavLink>
 
                 {/* Profile Dropdown */}
                 <div className="relative">
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
                   >
-                    <span className="text-gray-700 font-medium">{user.displayName || "User"}</span>
                     {user.photoURL ? (
                       <img
                         src={user.photoURL}
@@ -141,7 +145,34 @@ const NavBar = () => {
                       <div className="px-4 py-3 border-b border-gray-200">
                         <p className="text-sm font-semibold text-gray-900">{user.displayName || "User"}</p>
                         <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                        {isAdmin && (
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-[#caeb66] text-gray-900 text-xs font-semibold rounded">
+                            Admin
+                          </span>
+                        )}
                       </div>
+
+                      {/* Show both dashboards for admin */}
+                      {isAdmin && (
+                        <>
+                          <NavLink
+                            to="/admin"
+                            onClick={() => setIsProfileOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            Admin Dashboard
+                          </NavLink>
+                          <NavLink
+                            to="/dashboard"
+                            onClick={() => setIsProfileOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            User Dashboard
+                          </NavLink>
+                          <div className="border-t border-gray-200 my-2"></div>
+                        </>
+                      )}
+
                       <NavLink
                         to="/dashboard/my-parcels"
                         onClick={() => setIsProfileOpen(false)}
@@ -255,15 +286,42 @@ const NavBar = () => {
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{user.displayName || "User"}</p>
                         <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                        {isAdmin && (
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-[#caeb66] text-gray-900 text-xs font-semibold rounded">
+                            Admin
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <NavLink
-                      to="/dashboard"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="px-4 py-2 bg-primary hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors text-center"
-                    >
-                      Dashboard
-                    </NavLink>
+
+                    {/* Dashboard Links for Mobile */}
+                    {isAdmin ? (
+                      <>
+                        <NavLink
+                          to="/admin"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="px-4 py-2 bg-primary hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors text-center"
+                        >
+                          Admin Dashboard
+                        </NavLink>
+                        <NavLink
+                          to="/dashboard"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium rounded-lg transition-colors text-center"
+                        >
+                          User Dashboard
+                        </NavLink>
+                      </>
+                    ) : (
+                      <NavLink
+                        to="/dashboard"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="px-4 py-2 bg-primary hover:bg-[#b8d959] text-gray-900 font-semibold rounded-lg transition-colors text-center"
+                      >
+                        Dashboard
+                      </NavLink>
+                    )}
+
                     <NavLink
                       to="/dashboard/my-parcels"
                       onClick={() => setIsMenuOpen(false)}
